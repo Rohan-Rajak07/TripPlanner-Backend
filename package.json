@@ -4,7 +4,6 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "build": "npm install --include=dev && npm install --prefix Frontend --include=dev && npm run build --prefix Frontend",
     "start": "node server",
     "vercel-start":"node server.js"
   },
