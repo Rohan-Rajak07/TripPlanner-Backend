@@ -5,66 +5,68 @@ import dbConnect from './config/db.config.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import aiRouter from './routes/ai.router.js';
-import path from 'path';
 dotenv.config();
 
-
 const app=express();
-// dbConnect();
-
-let isConntected=false;
-async function connectToDatabase() {
-    if (!isConntected) {
-        try {
-            await dbConnect();
-            isConntected = true;
-            console.log("Connected to the database successfully.");
-        } catch (error) {
-            console.error("Error connecting to the database:", error);
-        }
-    }
-}
-
-//add middleware
-
-app.use((req, res, next) => {
-    if(!isConntected){
-        connectToDatabase()
-    }
-    next();
-    
-})
-
-
-
-
 app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 app.use(cors({origin:" http://localhost:5173",credentials:true}));
+// dbConnect();
 
-const __dirname = path.resolve();
+let isConnected = false;
 
-app.use('/auth',authRouter);
-app.use('/ai',aiRouter);
+async function connectToDatabase() {
+    if (isConnected) {
+        return;
+    }
 
-// if(process.env.NODE_ENV==="production")
-//     {
-//         app.use(express.static(path.join(__dirname,"/Frontend/dist")))
-//         // app.use('*', (req, res) => {
-//         //     res.sendFile(path.join(__dirname, 'Frontend', 'dist', 'index.html'));
-//         // });
-//     }
-//     else
-//     {
-//         app.get('/',(req,res)=>{
-//             res.send("It running on Development mode...");
-//         });
-//     }
-    
-// const PORT=process.env.PORT;
-// app.listen(PORT,()=>{
-//     console.log(`Server is running on http://localhost:${PORT}`);
-// })
+    try {
+        await dbConnect();
+        isConnected = true;
+        console.log("Connected to the database successfully.");
+    } catch (error) {
+        console.error("Database connection failed:", error);
+        throw error;
+    }
+}
 
-module.exports = app;
+// Routes
+app.use("/auth", async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        next(error);
+    }
+}, authRouter);
+
+app.use("/ai", async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        next(error);
+    }
+}, aiRouter);
+
+// Test route
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Trip Planner Backend is running"
+    });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error("Server Error:", err);
+
+    res.status(500).json({
+        success: false,
+        message: "Internal Server Error"
+    });
+});
+
+// IMPORTANT for Vercel
+export default app;
